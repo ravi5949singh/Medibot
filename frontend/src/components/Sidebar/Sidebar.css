@@ -1,0 +1,98 @@
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: var(--sidebar-width);
+  height: 100vh;
+  background: var(--surface);
+  border-right: 1px solid var(--border-light);
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+  transition: transform 0.3s ease;
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 20px 24px;
+}
+.brand-icon { flex-shrink: 0; }
+.brand-text { display: flex; flex-direction: column; }
+.brand-name { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); }
+.brand-tagline { font-size: 0.72rem; color: var(--text-muted); font-weight: 400; }
+
+/* Navigation */
+.sidebar-nav {
+  flex: 1;
+  padding: 0 12px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition: all 0.2s ease;
+}
+.nav-item:hover {
+  background: var(--primary-light);
+  color: var(--primary);
+}
+.nav-item.active {
+  background: var(--primary);
+  color: var(--text-white);
+  box-shadow: 0 2px 8px rgba(79,107,246,0.3);
+}
+.nav-icon { font-size: 1.15rem; display: flex; }
+.nav-label { white-space: nowrap; }
+
+/* Footer */
+.sidebar-footer {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.emergency-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: linear-gradient(135deg, #EF4444, #DC2626);
+  border-radius: var(--radius-md);
+  color: #fff;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.emergency-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(239,68,68,0.4);
+}
+.emergency-icon-wrap {
+  width: 36px; height: 36px;
+  background: rgba(255,255,255,0.2);
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+}
+.emergency-text { display: flex; flex-direction: column; }
+.emergency-title { font-size: 0.85rem; font-weight: 700; }
+.emergency-sub { font-size: 0.7rem; opacity: 0.85; }
+
+.disclaimer-box {
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+}
+.disclaimer-icon { font-size: 1rem; margin-bottom: 2px; }
+.disclaimer-label { font-size: 0.78rem; font-weight: 600; color: var(--text-primary); }
+.disclaimer-text { font-size: 0.68rem; color: var(--text-muted); line-height: 1.5; margin-top: 4px; }

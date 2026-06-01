@@ -1,0 +1,27 @@
+.pharmacy-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pharmacy-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  border-radius: var(--radius-md);
+  transition: background 0.2s;
+}
+.pharmacy-card:hover { background: var(--bg); }
+
+.pharmacy-icon {
+  width: 40px; height: 40px;
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.pharmacy-info { flex: 1; }
+.pharmacy-name { font-size: 0.85rem; font-weight: 600; color: var(--text-primary); }
+.pharmacy-dist { font-size: 0.72rem; color: var(--accent-green); font-weight: 500; margin-top: 2px; }
