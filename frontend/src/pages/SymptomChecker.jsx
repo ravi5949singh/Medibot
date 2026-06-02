@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FiActivity, FiSearch, FiCheck, FiX, FiAlertTriangle, FiArrowRight, FiArrowLeft, FiHeart, FiFileText, FiPhoneCall } from 'react-icons/fi'
-import axios from 'axios'
+import api from '../services/api'
 import './Pages.css'
 
 const COMMON_SYMPTOMS = [
@@ -89,7 +89,7 @@ export default function SymptomChecker() {
         conditions: selectedConditions.filter(c => c !== 'None')
       }
       
-      const { data } = await axios.post('/api/chat/analyze', payload)
+      const { data } = await api.post('/chat/analyze', payload)
       
       // Calculate risk score based on severity and see_doctor recommendation
       let riskScore = 20
