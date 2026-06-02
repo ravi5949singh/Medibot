@@ -60,7 +60,7 @@ app.use(errorHandler)
 
 // Start server
 const startServer = async () => {
-  await connectDB()
+  connectDB()
   app.listen(PORT, () => {
     console.log(`🏥 MediCare AI Backend running on port ${PORT}`)
   })
