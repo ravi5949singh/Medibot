@@ -18,7 +18,23 @@ const PORT = process.env.PORT || 5000
 
 // Middleware
 app.use(helmet())
-app.use(cors({ origin: 'http://localhost:3000', credentials: true }))
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://medibot-khaki.vercel.app',
+  'https://medibot-git-main-ravi5949singhs-projects.vercel.app',
+  'https://medibot-a0yt0kf6p-ravi5949singhs-projects.vercel.app'
+]
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps, curl, Render health checks)
+    if (!origin) return callback(null, true)
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true)
+    }
+    return callback(new Error('CORS: Not allowed by CORS policy'))
+  },
+  credentials: true
+}))
 app.use(express.json({ limit: '10mb' }))
 
 // Rate limiting
