@@ -33,16 +33,20 @@ export const sendMessage = async (req, res, next) => {
     const severity = detectSeverity(message)
     const severityMessage = getSeverityMessage(severity)
 
-    // Save to history (only health queries)
+    // Save to history (only health queries, non-blocking)
     if (user_id) {
-      await ChatHistory.create({
-        user_id,
-        message,
-        response: aiResult.response,
-        severity,
-        diseases: aiResult.possible_conditions || [],
-        recommendations: aiResult.suggestions || [],
-      })
+      try {
+        await ChatHistory.create({
+          user_id,
+          message,
+          response: aiResult.response,
+          severity,
+          diseases: aiResult.possible_conditions || [],
+          recommendations: aiResult.suggestions || [],
+        })
+      } catch (dbErr) {
+        console.warn('Could not save chat history (DB may be offline):', dbErr.message)
+      }
     }
 
     res.json({
