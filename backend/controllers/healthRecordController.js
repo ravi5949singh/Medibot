@@ -2,11 +2,21 @@ import dotenv from 'dotenv'
 dotenv.config()
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`
+
+const MODEL_NAMES = [
+  'gemini-3.7-flash',
+  'gemini-3.5-flash-lite',
+  'gemini-2.0-flash',
+  'gemini-1.5-flash'
+]
+
+function getGeminiUrl(model) {
+  return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`
+}
 
 /**
  * AI-powered medical report extraction endpoint
- * Receives base64 image data and calls Gemini API for structure OCR parsing
+ * Receives base64 image data and calls Gemini API for structured OCR parsing
  */
 export const extractMedicalReport = async (req, res, next) => {
   try {
@@ -15,7 +25,6 @@ export const extractMedicalReport = async (req, res, next) => {
       return res.status(400).json({ error: 'No report image data provided' })
     }
 
-    // Strip header from base64 if present
     const cleanBase64 = image.replace(/^data:image\/\w+;base64,/, '')
     const resolvedMime = mimeType || 'image/png'
 
@@ -44,51 +53,56 @@ Respond ONLY with valid JSON in this exact structure:
 }
 Do not include any other text, markdown blocks, or surrounding quotes. Only return the raw JSON.`
 
-    console.log('Sending report to Gemini API for extraction...')
+    for (const model of MODEL_NAMES) {
+      try {
+        const url = getGeminiUrl(model)
+        const controller = new AbortController()
+        const timeout = setTimeout(() => controller.abort(), 12000)
 
-    const response = await fetch(GEMINI_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{
-          parts: [
-            { text: systemPrompt },
-            {
-              inlineData: {
-                mimeType: resolvedMime,
-                data: cleanBase64
-              }
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
+          body: JSON.stringify({
+            contents: [{
+              parts: [
+                { text: systemPrompt },
+                {
+                  inlineData: {
+                    mimeType: resolvedMime,
+                    data: cleanBase64
+                  }
+                }
+              ]
+            }],
+            generationConfig: {
+              temperature: 0.1,
+              maxOutputTokens: 1000,
+              responseMimeType: "application/json"
             }
-          ]
-        }],
-        generationConfig: {
-          temperature: 0.1,
-          maxOutputTokens: 1000,
-          responseMimeType: "application/json"
+          })
+        })
+
+        clearTimeout(timeout)
+
+        if (response.ok) {
+          const data = await response.json()
+          const text = data.candidates?.[0]?.content?.parts?.[0]?.text
+          if (text) {
+            try {
+              const extracted = JSON.parse(text)
+              return res.json(extracted)
+            } catch {
+              // Try next
+            }
+          }
         }
-      })
-    })
-
-    if (!response.ok) {
-      const errText = await response.text()
-      console.warn('Gemini OCR API rate-limited or error, triggering premium fallback extraction:', response.status)
-      return returnFallbackReport(res)
+      } catch (err) {
+        console.warn(`OCR model ${model} notice:`, err.message)
+      }
     }
 
-    const data = await response.json()
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text
-
-    if (!text) {
-      return returnFallbackReport(res)
-    }
-
-    try {
-      const extracted = JSON.parse(text)
-      res.json(extracted)
-    } catch (parseError) {
-      console.warn('Failed to parse Gemini response, returning fallback report')
-      return returnFallbackReport(res)
-    }
+    return returnFallbackReport(res)
   } catch (error) {
     console.warn('OCR Fetch exception, returning fallback report:', error.message)
     return returnFallbackReport(res)
