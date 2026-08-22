@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
-import { FiMapPin, FiPhone, FiNavigation } from 'react-icons/fi'
+import { FiMapPin, FiPhone, FiNavigation, FiCrosshair } from 'react-icons/fi'
 import { searchPharmacies } from '../services/api'
 import DirectionModal from '../components/Map/DirectionModal'
+import LocationModal from '../components/LocationModal/LocationModal'
 import './Pages.css'
 
 export default function MedicineStores() {
@@ -14,10 +15,15 @@ export default function MedicineStores() {
   const [isLoading, setIsLoading] = useState(false)
   const [locationLabel, setLocationLabel] = useState('')
   const [selectedStore, setSelectedStore] = useState(null)
+  const [isLocModalOpen, setIsLocModalOpen] = useState(false)
 
   useEffect(() => {
-    handleSearch()
-  }, []) // Initial load
+    if (location.state?.latitude && location.state?.longitude) {
+      handleSearchByCoords(location.state.latitude, location.state.longitude, location.state.medicine || medicine)
+    } else {
+      handleSearch()
+    }
+  }, [location.state])
 
   const handleSearch = async () => {
     setIsLoading(true)
@@ -27,12 +33,38 @@ export default function MedicineStores() {
       if (result.location) {
         setLocationLabel(result.location)
       }
+      if (result.pincode && !pincode) {
+        setPincode(result.pincode)
+      }
     } catch (error) {
       console.error('Failed to search pharmacies', error)
       setStores([])
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleSearchByCoords = async (latitude, longitude, med = medicine) => {
+    setIsLoading(true)
+    try {
+      const result = await searchPharmacies('', '', med, latitude, longitude)
+      setStores(result.pharmacies || [])
+      if (result.location) {
+        setLocationLabel(result.location)
+      }
+      if (result.pincode) {
+        setPincode(result.pincode)
+      }
+    } catch (error) {
+      console.error('GPS pharmacy search error', error)
+      setStores([])
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleGPSLocationGranted = (coords) => {
+    handleSearchByCoords(coords.latitude, coords.longitude)
   }
 
   const handleCallStore = (store) => {
@@ -94,10 +126,21 @@ export default function MedicineStores() {
 
   return (
     <div className="page-full">
-      <h1 className="page-heading">Nearby Medicine Stores & Pharmacies</h1>
-      <p className="page-desc">Find pharmacies, medical stores, and chemists near your location with available medicines</p>
+      <div className="flex justify-between items-center flex-wrap gap-4">
+        <div>
+          <h1 className="page-heading">Nearby Medicine Stores & Pharmacies</h1>
+          <p className="page-desc">Find pharmacies, medical stores, and chemists near your location with available medicines in stock</p>
+        </div>
+        <button 
+          className="primary-btn flex-center gap-2"
+          style={{ background: 'linear-gradient(135deg, #8B5CF6, #6366F1)', padding: '10px 18px', borderRadius: '12px' }}
+          onClick={() => setIsLocModalOpen(true)}
+        >
+          <FiCrosshair /> Use My Live GPS Location
+        </button>
+      </div>
 
-      <div className="search-filters">
+      <div className="search-filters mt-4">
         <input 
           className="filter-input" 
           id="pincode-input" 
@@ -128,15 +171,15 @@ export default function MedicineStores() {
       </div>
 
       {locationLabel && (
-        <div style={{ marginTop: '12px', fontSize: '0.85rem', color: '#8B5CF6', fontWeight: 500 }}>
-          📍 Showing pharmacies and medical stores near: <span style={{ color: '#1E293B' }}>{locationLabel}</span>
+        <div style={{ marginTop: '14px', fontSize: '0.88rem', color: '#8B5CF6', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <FiMapPin /> Showing pharmacies and medical stores near: <span style={{ color: '#1E293B', fontWeight: 700 }}>{locationLabel}</span>
         </div>
       )}
 
       <div className="results-grid" style={{ marginTop: '20px' }}>
         {stores.length === 0 && !isLoading && (
           <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: '#64748B' }}>
-            No medicine stores found for this search. Try a nearby pincode.
+            No medicine stores found for this search. Click "Use My Live GPS Location" or try a nearby pincode.
           </div>
         )}
         
@@ -195,6 +238,14 @@ export default function MedicineStores() {
       {selectedStore && (
         <DirectionModal doctor={selectedStore} onClose={() => setSelectedStore(null)} />
       )}
+
+      <LocationModal 
+        isOpen={isLocModalOpen}
+        onClose={() => setIsLocModalOpen(false)}
+        onLocationGranted={handleGPSLocationGranted}
+        title="Detect Nearby Medicine Stores"
+        description="Allow location access to automatically locate chemists and 24/7 pharmacies with in-stock medicines near your current GPS position."
+      />
     </div>
   )
 }

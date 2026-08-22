@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
-import { FiMapPin, FiStar, FiPhone, FiNavigation } from 'react-icons/fi'
+import { FiMapPin, FiStar, FiPhone, FiNavigation, FiCrosshair } from 'react-icons/fi'
 import { searchDoctors } from '../services/api'
 import DirectionModal from '../components/Map/DirectionModal'
+import LocationModal from '../components/LocationModal/LocationModal'
 import './Pages.css'
 
 export default function FindDoctors() {
@@ -14,10 +15,16 @@ export default function FindDoctors() {
   const [isLoading, setIsLoading] = useState(false)
   const [locationLabel, setLocationLabel] = useState('')
   const [selectedDoctor, setSelectedDoctor] = useState(null)
+  const [isLocModalOpen, setIsLocModalOpen] = useState(false)
 
+  // Auto-search on mount (if coordinates passed or initial load)
   useEffect(() => {
-    handleSearch()
-  }, []) // Initial load
+    if (location.state?.latitude && location.state?.longitude) {
+      handleSearchByCoords(location.state.latitude, location.state.longitude, location.state.specialization || specialization)
+    } else {
+      handleSearch()
+    }
+  }, [location.state])
 
   const handleSearch = async () => {
     setIsLoading(true)
@@ -27,12 +34,38 @@ export default function FindDoctors() {
       if (result.location) {
         setLocationLabel(result.location)
       }
+      if (result.pincode && !pincode) {
+        setPincode(result.pincode)
+      }
     } catch (error) {
       console.error('Failed to search doctors', error)
       setDoctors([])
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleSearchByCoords = async (latitude, longitude, spec = specialization) => {
+    setIsLoading(true)
+    try {
+      const result = await searchDoctors('', '', spec, latitude, longitude)
+      setDoctors(result.doctors || [])
+      if (result.location) {
+        setLocationLabel(result.location)
+      }
+      if (result.pincode) {
+        setPincode(result.pincode)
+      }
+    } catch (error) {
+      console.error('GPS search error', error)
+      setDoctors([])
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleGPSLocationGranted = (coords) => {
+    handleSearchByCoords(coords.latitude, coords.longitude)
   }
 
   const handleCallDoctor = (doc) => {
@@ -99,10 +132,21 @@ export default function FindDoctors() {
 
   return (
     <div className="page-full">
-      <h1 className="page-heading">Find Doctors & Clinics Near You</h1>
-      <p className="page-desc">Search verified doctors, medical specialists, and clinics by entering any Indian pincode or area</p>
+      <div className="flex justify-between items-center flex-wrap gap-4">
+        <div>
+          <h1 className="page-heading">Find Doctors & Clinics Near You</h1>
+          <p className="page-desc">Search verified doctors, medical specialists, and clinics by entering any Indian pincode or using your live GPS location</p>
+        </div>
+        <button 
+          className="primary-btn flex-center gap-2"
+          style={{ background: 'linear-gradient(135deg, #4F6BF6, #7C3AED)', padding: '10px 18px', borderRadius: '12px' }}
+          onClick={() => setIsLocModalOpen(true)}
+        >
+          <FiCrosshair /> Use My Live GPS Location
+        </button>
+      </div>
 
-      <div className="search-filters">
+      <div className="search-filters mt-4">
         <input 
           className="filter-input" 
           id="pincode-input" 
@@ -133,15 +177,15 @@ export default function FindDoctors() {
       </div>
 
       {locationLabel && (
-        <div style={{ marginTop: '12px', fontSize: '0.85rem', color: '#4F6BF6', fontWeight: 500 }}>
-          📍 Showing clinics and doctors near: <span style={{ color: '#1E293B' }}>{locationLabel}</span>
+        <div style={{ marginTop: '14px', fontSize: '0.88rem', color: '#4F6BF6', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <FiMapPin /> Showing clinics and doctors near: <span style={{ color: '#1E293B', fontWeight: 700 }}>{locationLabel}</span>
         </div>
       )}
 
       <div className="results-grid" style={{ marginTop: '20px' }}>
         {doctors.length === 0 && !isLoading && (
           <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: '#64748B' }}>
-            No doctors or clinics found for this search. Please try a nearby pincode or city name.
+            No doctors or clinics found for this location. Click "Use My Live GPS Location" or try a nearby pincode.
           </div>
         )}
         
@@ -182,6 +226,14 @@ export default function FindDoctors() {
       {selectedDoctor && (
         <DirectionModal doctor={selectedDoctor} onClose={() => setSelectedDoctor(null)} />
       )}
+
+      <LocationModal 
+        isOpen={isLocModalOpen}
+        onClose={() => setIsLocModalOpen(false)}
+        onLocationGranted={handleGPSLocationGranted}
+        title="Detect Nearby Doctors & Clinics"
+        description="Allow location access to instantly find verified specialists and hospitals within 5-8km of your current GPS position."
+      />
     </div>
   )
 }

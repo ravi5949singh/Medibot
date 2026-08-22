@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import { 
   FiActivity, FiSearch, FiCheck, FiX, FiAlertTriangle, FiArrowRight, 
   FiArrowLeft, FiHeart, FiFileText, FiPhoneCall, FiMic, FiPrinter, 
-  FiCompass, FiShield, FiTrendingUp, FiInfo
+  FiCompass, FiShield, FiTrendingUp, FiInfo, FiMapPin, FiNavigation
 } from 'react-icons/fi'
 import api from '../services/api'
+import LocationModal from '../components/LocationModal/LocationModal'
 import './Pages.css'
 
 // Categorized Symptoms with Icons
@@ -90,12 +91,51 @@ export default function SymptomChecker() {
   const [notes, setNotes] = useState('')
   const [isListening, setIsListening] = useState(false)
   
+  // Location Permission Modal State
+  const [isLocModalOpen, setIsLocModalOpen] = useState(false)
+  const [locTarget, setLocTarget] = useState({ type: 'doctor', spec: '' })
+
   // Loading & Result State
   const [isLoading, setIsLoading] = useState(false)
   const [result, setResult] = useState(null)
   const [error, setError] = useState('')
 
   const printRef = useRef(null)
+
+  const openLocationPrompt = (type, spec = '') => {
+    setLocTarget({ type, spec })
+    setIsLocModalOpen(true)
+  }
+
+  const handleLocationGranted = (coords) => {
+    if (locTarget.type === 'doctor') {
+      navigate('/find-doctors', { 
+        state: { 
+          latitude: coords.latitude, 
+          longitude: coords.longitude, 
+          specialization: locTarget.spec || result?.specialist || '',
+          autoSearch: true 
+        } 
+      })
+    } else {
+      navigate('/medicine-stores', { 
+        state: { 
+          latitude: coords.latitude, 
+          longitude: coords.longitude,
+          autoSearch: true 
+        } 
+      })
+    }
+  }
+
+  const handleManualLocationFallback = () => {
+    setIsLocModalOpen(false)
+    if (locTarget.type === 'doctor') {
+      navigate('/find-doctors', { state: { specialization: locTarget.spec || result?.specialist || '' } })
+    } else {
+      navigate('/medicine-stores')
+    }
+  }
 
   const toggleSymptom = (symName) => {
     if (selectedSymptoms.includes(symName)) {
@@ -695,9 +735,9 @@ export default function SymptomChecker() {
                             <p className="meds-sub-note">Always verify dosages with a certified pharmacist before taking any OTC medicines.</p>
                             <button 
                               className="locate-pharmacies-btn mt-3"
-                              onClick={() => navigate('/medicine-stores')}
+                              onClick={() => openLocationPrompt('pharmacy')}
                             >
-                              💊 Find Nearby Pharmacies with Stock →
+                              📍 Find Local Pharmacies with GPS →
                             </button>
                           </div>
                         )}
@@ -713,9 +753,9 @@ export default function SymptomChecker() {
                               </p>
                               <button 
                                 className="primary-btn mt-3 flex-center gap-2"
-                                onClick={() => navigate('/find-doctors', { state: { specialization: result.specialist } })}
+                                onClick={() => openLocationPrompt('doctor', result.specialist)}
                               >
-                                Find {result.specialist} Near You →
+                                📍 Find {result.specialist} Near You →
                               </button>
                             </div>
                           </div>
@@ -841,6 +881,14 @@ export default function SymptomChecker() {
         </div>
 
       </div>
+
+      <LocationModal 
+        isOpen={isLocModalOpen}
+        onClose={handleManualLocationFallback}
+        onLocationGranted={handleLocationGranted}
+        title={locTarget.type === 'doctor' ? `Find ${locTarget.spec || 'Doctor'} Near You` : "Find Nearby Medicine Stores"}
+        description="Allow MediCare AI to use your device GPS location to locate real verified clinics, doctors, and medical stores within 5-8km of where you are right now."
+      />
     </div>
   )
 }

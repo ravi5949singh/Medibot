@@ -12,6 +12,38 @@ const OSM_MIRRORS = [
 ]
 
 /**
+ * Reverse geocode lat/lng to get address info
+ */
+async function reverseGeocode(lat, lng) {
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 4500)
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: { 'User-Agent': 'MediCareAI/2.0 (healthcare portal)' }
+    })
+    clearTimeout(timeout)
+    const data = await res.json()
+    if (data && data.address) {
+      const addr = data.address
+      return {
+        lat: parseFloat(lat),
+        lng: parseFloat(lng),
+        displayName: data.display_name,
+        pincode: addr.postcode || '',
+        city: addr.city || addr.town || addr.village || addr.county || addr.state_district || '',
+        suburb: addr.suburb || addr.neighbourhood || addr.road || '',
+        state: addr.state || ''
+      }
+    }
+  } catch (err) {
+    console.warn('Reverse geocoding notice:', err.message)
+  }
+  return { lat: parseFloat(lat), lng: parseFloat(lng), displayName: 'Current Location', city: '', suburb: '', state: '', pincode: '' }
+}
+
+/**
  * Convert Indian pincode / area to lat/lng and location details using Nominatim
  */
 async function pincodeToLatLng(query) {
@@ -37,6 +69,7 @@ async function pincodeToLatLng(query) {
         lat: parseFloat(data[0].lat),
         lng: parseFloat(data[0].lon),
         displayName: data[0].display_name,
+        pincode: addr.postcode || query,
         city: city || suburb,
         suburb: suburb,
         state: addr.state || ''
@@ -81,18 +114,12 @@ async function fetchRealFacilitiesFromOSM(lat, lng, radiusMeters = 8000) {
   return []
 }
 
-/**
- * Specializations list for categorization
- */
 const SPECIALIZATIONS = [
   'General Physician', 'Cardiologist', 'Pediatrician', 'Dermatologist',
   'Orthopedic Surgeon', 'ENT Specialist', 'Gynecologist', 'Neurologist',
   'Ophthalmologist', 'Dentist', 'Diabetologist', 'Psychiatrist'
 ]
 
-/**
- * Generate diverse, unique doctor names based on geocoded area
- */
 function generateLocationDoctors(pincode, locationInfo, specialization) {
   const areaName = locationInfo?.suburb || locationInfo?.city || `Sector ${pincode.slice(-2)}`
   const cityName = locationInfo?.city || locationInfo?.state || 'City Center'
@@ -101,8 +128,7 @@ function generateLocationDoctors(pincode, locationInfo, specialization) {
   const lastNames = ['Sharma', 'Verma', 'Patel', 'Singh', 'Gupta', 'Reddy', 'Joshi', 'Kumari', 'Mishra', 'Mehta', 'Tiwari', 'Deshmukh', 'Chopra', 'Nair', 'Bose', 'Aggarwal']
   const clinicTypes = ['Healthcare Clinic', 'Multi-Speciality Care', 'Polyclinic & Diagnostic', 'Family Health Centre', 'Medical Care', 'Medicare Clinic']
 
-  // Seed randomization with pincode digits so it is consistent yet unique per pincode
-  const pinNum = parseInt(pincode.replace(/\D/g, '') || '462001', 10)
+  const pinNum = parseInt((pincode || '462001').replace(/\D/g, '') || '462001', 10)
 
   const docs = []
   const specs = specialization ? [specialization] : SPECIALIZATIONS
@@ -124,9 +150,9 @@ function generateLocationDoctors(pincode, locationInfo, specialization) {
       doctor_name: docName,
       clinic_name: clinicName,
       specialization: spec,
-      clinic_address: `${street}, Pincode: ${pincode}`,
+      clinic_address: `${street}, Pincode: ${pincode || '462001'}`,
       phone,
-      pincode,
+      pincode: pincode || '462001',
       latitude: (locationInfo?.lat || 23.2599) + ((i % 3 - 1) * 0.015),
       longitude: (locationInfo?.lng || 77.4126) + ((Math.floor(i / 3) - 1) * 0.015),
       rating: (4.2 + ((pinNum + i * 7) % 8) / 10).toFixed(1),
@@ -139,13 +165,22 @@ function generateLocationDoctors(pincode, locationInfo, specialization) {
 
 export const searchDoctors = async (req, res) => {
   try {
-    const { pincode = '', area = '', specialization = '' } = req.query
-    const searchTarget = pincode.trim() || area.trim() || '462001'
+    const { pincode = '', area = '', specialization = '', latitude, longitude } = req.query
+    let locationInfo = null
 
-    // 1. Geocode the location
-    const locationInfo = await pincodeToLatLng(searchTarget)
+    // 1. If direct GPS coordinates provided, use them!
+    if (latitude && longitude) {
+      const lat = parseFloat(latitude)
+      const lng = parseFloat(longitude)
+      locationInfo = await reverseGeocode(lat, lng)
+    } else {
+      const searchTarget = pincode.trim() || area.trim() || '462001'
+      locationInfo = await pincodeToLatLng(searchTarget)
+    }
+
     const lat = locationInfo?.lat || 23.2599
     const lng = locationInfo?.lng || 77.4126
+    const resolvedPincode = locationInfo?.pincode || pincode || '462001'
 
     // 2. Fetch real OSM medical facilities
     const osmElements = await fetchRealFacilitiesFromOSM(lat, lng, 8000)
@@ -159,7 +194,6 @@ export const searchDoctors = async (req, res) => {
         if (!facilityName || facilityName.length < 3 || seen.has(facilityName.toLowerCase())) continue
         seen.add(facilityName.toLowerCase())
 
-        // Extract or determine specialization
         let spec = tags['healthcare:speciality'] || tags['specialty'] || ''
         if (!spec) {
           if (/cardio/i.test(facilityName)) spec = 'Cardiologist'
@@ -184,7 +218,7 @@ export const searchDoctors = async (req, res) => {
           tags['addr:suburb'] || locationInfo?.suburb,
           tags['addr:city'] || locationInfo?.city,
           locationInfo?.state
-        ].filter(Boolean).join(', ') || `Near ${locationInfo?.city || 'Main Road'}, Pincode: ${pincode || '462001'}`
+        ].filter(Boolean).join(', ') || `Near ${locationInfo?.city || 'Main Road'}, Pincode: ${resolvedPincode}`
 
         const isDoctorNamed = /dr\.|doctor/i.test(facilityName)
 
@@ -196,7 +230,7 @@ export const searchDoctors = async (req, res) => {
           specialization: spec.charAt(0).toUpperCase() + spec.slice(1),
           clinic_address: address,
           phone,
-          pincode: pincode || '462001',
+          pincode: resolvedPincode,
           latitude: el.lat || el.center?.lat || lat,
           longitude: el.lon || el.center?.lon || lng,
           rating: (4.3 + (Math.random() * 0.6)).toFixed(1),
@@ -205,22 +239,22 @@ export const searchDoctors = async (req, res) => {
       }
     }
 
-    // 3. If OSM returned doctors, use them!
     if (realDoctors.length > 0) {
       return res.json({
         count: realDoctors.length,
         doctors: realDoctors,
-        location: locationInfo?.displayName || searchTarget,
+        location: locationInfo?.displayName || `${lat.toFixed(4)}, ${lng.toFixed(4)}`,
+        pincode: resolvedPincode,
         source: 'osm'
       })
     }
 
-    // 4. Fallback to location-customized genuine directory
-    const locationDoctors = generateLocationDoctors(pincode || '462001', locationInfo, specialization)
+    const locationDoctors = generateLocationDoctors(resolvedPincode, locationInfo, specialization)
     return res.json({
       count: locationDoctors.length,
       doctors: locationDoctors,
-      location: locationInfo?.displayName || searchTarget,
+      location: locationInfo?.displayName || `${lat.toFixed(4)}, ${lng.toFixed(4)}`,
+      pincode: resolvedPincode,
       source: 'local_registry'
     })
   } catch (error) {

@@ -21,25 +21,33 @@ export async function sendChatMessage(message) {
 }
 
 /**
- * Search doctors by pincode, area and specialization
+ * Search doctors by pincode, area and specialization, or direct GPS coordinates
  */
-export async function searchDoctors(pincode, area = '', specialization = '') {
+export async function searchDoctors(pincode, area = '', specialization = '', latitude = null, longitude = null) {
   const params = {}
   if (pincode) params.pincode = pincode
   if (area) params.area = area
   if (specialization) params.specialization = specialization
+  if (latitude != null && longitude != null) {
+    params.latitude = latitude
+    params.longitude = longitude
+  }
   const { data } = await api.get('/doctors/search', { params })
   return data
 }
 
 /**
- * Search pharmacies by pincode, area and medicine name
+ * Search pharmacies by pincode, area and medicine name, or direct GPS coordinates
  */
-export async function searchPharmacies(pincode, area = '', medicine = '') {
+export async function searchPharmacies(pincode, area = '', medicine = '', latitude = null, longitude = null) {
   const params = {}
   if (pincode) params.pincode = pincode
   if (area) params.area = area
   if (medicine) params.medicine = medicine
+  if (latitude != null && longitude != null) {
+    params.latitude = latitude
+    params.longitude = longitude
+  }
   const { data } = await api.get('/pharmacies', { params })
   return data
 }

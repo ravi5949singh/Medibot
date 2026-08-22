@@ -11,6 +11,35 @@ const OSM_MIRRORS = [
   'https://lz4.overpass-api.de/api/interpreter'
 ]
 
+async function reverseGeocode(lat, lng) {
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 4500)
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: { 'User-Agent': 'MediCareAI/2.0 (healthcare portal)' }
+    })
+    clearTimeout(timeout)
+    const data = await res.json()
+    if (data && data.address) {
+      const addr = data.address
+      return {
+        lat: parseFloat(lat),
+        lng: parseFloat(lng),
+        displayName: data.display_name,
+        pincode: addr.postcode || '',
+        city: addr.city || addr.town || addr.village || addr.county || addr.state_district || '',
+        suburb: addr.suburb || addr.neighbourhood || addr.road || '',
+        state: addr.state || ''
+      }
+    }
+  } catch (err) {
+    console.warn('Reverse geocoding notice:', err.message)
+  }
+  return { lat: parseFloat(lat), lng: parseFloat(lng), displayName: 'Current Location', city: '', suburb: '', state: '', pincode: '' }
+}
+
 async function pincodeToLatLng(query) {
   try {
     const isPincode = /^\d{6}$/.test(query.trim())
@@ -34,6 +63,7 @@ async function pincodeToLatLng(query) {
         lat: parseFloat(data[0].lat),
         lng: parseFloat(data[0].lon),
         displayName: data[0].display_name,
+        pincode: addr.postcode || query,
         city: city || suburb,
         suburb: suburb,
         state: addr.state || ''
@@ -83,11 +113,11 @@ const COMMON_MEDICINES = [
 ]
 
 function generateLocationPharmacies(pincode, locationInfo, medicine) {
-  const areaName = locationInfo?.suburb || locationInfo?.city || `Sector ${pincode.slice(-2)}`
+  const areaName = locationInfo?.suburb || locationInfo?.city || `Sector ${(pincode || '462001').slice(-2)}`
   const cityName = locationInfo?.city || locationInfo?.state || 'City Center'
 
   const storeChains = ['Apollo Pharmacy 24/7', 'MedPlus Health Services', 'Netmeds Pharmacy Store', 'Wellness Forever Chemists', 'Jan Aushadhi Kendra', 'Sanjivani Medical Store', 'City Care Chemist & Druggist', 'LifeLine Medicos']
-  const pinNum = parseInt(pincode.replace(/\D/g, '') || '462001', 10)
+  const pinNum = parseInt((pincode || '462001').replace(/\D/g, '') || '462001', 10)
 
   const pharmacies = []
 
@@ -95,10 +125,9 @@ function generateLocationPharmacies(pincode, locationInfo, medicine) {
     const chainIdx = (pinNum + i) % storeChains.length
     const chainName = storeChains[chainIdx]
     const storeName = `${chainName} (${areaName})`
-    const address = `Shop ${12 + i * 3}, Main Bazaar, Near ${areaName}, ${cityName} - ${pincode}`
+    const address = `Shop ${12 + i * 3}, Main Bazaar, Near ${areaName}, ${cityName} - ${pincode || '462001'}`
     const phone = `+91 ${9700000000 + ((pinNum * 17 + i * 222222) % 199999999)}`
 
-    // Rotate available medicines
     const storeMeds = new Set()
     if (medicine) storeMeds.add(medicine)
     for (let m = 0; m < 6; m++) {
@@ -109,7 +138,7 @@ function generateLocationPharmacies(pincode, locationInfo, medicine) {
       _id: `loc-pharm-${pincode}-${i}`,
       name: storeName,
       address,
-      pincode,
+      pincode: pincode || '462001',
       phone,
       latitude: (locationInfo?.lat || 23.2599) + ((i % 3 - 1) * 0.012),
       longitude: (locationInfo?.lng || 77.4126) + ((Math.floor(i / 3) - 1) * 0.012),
@@ -123,15 +152,22 @@ function generateLocationPharmacies(pincode, locationInfo, medicine) {
 
 export const searchPharmacies = async (req, res) => {
   try {
-    const { pincode = '', area = '', medicine = '' } = req.query
-    const searchTarget = pincode.trim() || area.trim() || '462001'
+    const { pincode = '', area = '', medicine = '', latitude, longitude } = req.query
+    let locationInfo = null
 
-    // 1. Geocode location
-    const locationInfo = await pincodeToLatLng(searchTarget)
+    if (latitude && longitude) {
+      const lat = parseFloat(latitude)
+      const lng = parseFloat(longitude)
+      locationInfo = await reverseGeocode(lat, lng)
+    } else {
+      const searchTarget = pincode.trim() || area.trim() || '462001'
+      locationInfo = await pincodeToLatLng(searchTarget)
+    }
+
     const lat = locationInfo?.lat || 23.2599
     const lng = locationInfo?.lng || 77.4126
+    const resolvedPincode = locationInfo?.pincode || pincode || '462001'
 
-    // 2. Fetch real OSM pharmacies
     const osmElements = await fetchRealPharmaciesFromOSM(lat, lng, 8000)
     let realPharmacies = []
 
@@ -149,7 +185,7 @@ export const searchPharmacies = async (req, res) => {
           tags['addr:suburb'] || locationInfo?.suburb,
           tags['addr:city'] || locationInfo?.city,
           locationInfo?.state
-        ].filter(Boolean).join(', ') || `Near ${locationInfo?.city || 'Main Road'}, Pincode: ${pincode || '462001'}`
+        ].filter(Boolean).join(', ') || `Near ${locationInfo?.city || 'Main Road'}, Pincode: ${resolvedPincode}`
 
         const meds = new Set(COMMON_MEDICINES.slice(0, 8))
         if (medicine) meds.add(medicine)
@@ -158,7 +194,7 @@ export const searchPharmacies = async (req, res) => {
           _id: `osm-pharm-${el.id}`,
           name: storeName,
           address,
-          pincode: pincode || '462001',
+          pincode: resolvedPincode,
           phone,
           latitude: el.lat || el.center?.lat || lat,
           longitude: el.lon || el.center?.lon || lng,
@@ -168,7 +204,6 @@ export const searchPharmacies = async (req, res) => {
       }
     }
 
-    // 3. If real pharmacies found, return them
     if (realPharmacies.length > 0) {
       if (medicine) {
         const filtered = realPharmacies.filter(p =>
@@ -179,17 +214,18 @@ export const searchPharmacies = async (req, res) => {
       return res.json({
         count: realPharmacies.length,
         pharmacies: realPharmacies,
-        location: locationInfo?.displayName || searchTarget,
+        location: locationInfo?.displayName || `${lat.toFixed(4)}, ${lng.toFixed(4)}`,
+        pincode: resolvedPincode,
         source: 'osm'
       })
     }
 
-    // 4. Fallback to location-specific genuine directory
-    const locationPharmacies = generateLocationPharmacies(pincode || '462001', locationInfo, medicine)
+    const locationPharmacies = generateLocationPharmacies(resolvedPincode, locationInfo, medicine)
     return res.json({
       count: locationPharmacies.length,
       pharmacies: locationPharmacies,
-      location: locationInfo?.displayName || searchTarget,
+      location: locationInfo?.displayName || `${lat.toFixed(4)}, ${lng.toFixed(4)}`,
+      pincode: resolvedPincode,
       source: 'local_registry'
     })
   } catch (error) {
