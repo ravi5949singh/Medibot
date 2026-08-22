@@ -14,9 +14,37 @@ import SymptomChecker from './pages/SymptomChecker'
 import EmergencyHelp from './pages/EmergencyHelp'
 import './App.css'
 
+/* ── Global 3D Animated Background ── */
+function AnimatedBackground() {
+  return (
+    <div className="global-bg" aria-hidden="true">
+      {/* Big colorful gradient orbs */}
+      <div className="orb orb-1" />
+      <div className="orb orb-2" />
+      <div className="orb orb-3" />
+      <div className="orb orb-4" />
+      <div className="orb orb-5" />
+
+      {/* Rotating 3D ring circles */}
+      <div className="ring ring-1" />
+      <div className="ring ring-2" />
+      <div className="ring ring-3" />
+
+      {/* Grid lines overlay */}
+      <div className="bg-grid" />
+
+      {/* Floating medical symbols */}
+      {['💊','🧬','🩺','❤️','🧪','⚕️','💉','🔬','🩻','💡'].map((icon, i) => (
+        <span key={i} className={`bg-particle bg-particle-${i}`}>{icon}</span>
+      ))}
+    </div>
+  )
+}
+
 function App() {
   return (
     <Router>
+      <AnimatedBackground />
       <div className="app-layout">
         <Sidebar />
         <div className="main-area">
@@ -41,4 +69,5 @@ function App() {
 }
 
 export default App
+
 

@@ -43,7 +43,7 @@ html { font-size: 16px; scroll-behavior: smooth; }
 
 body {
   font-family: var(--font);
-  background: var(--bg);
+  background: transparent;
   color: var(--text-primary);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
@@ -104,12 +104,15 @@ img { max-width: 100%; display: block; }
 .fade-in { animation: fadeIn 0.3s ease-out; }
 .slide-up { animation: slideUp 0.4s ease-out; }
 
-/* ========== SHARED PANEL CARDS ========== */
+/* ========== SHARED PANEL CARDS — glassmorphism so background shows ========== */
 .panel-card {
-  background: var(--surface);
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
   border-radius: var(--radius-lg);
   padding: 20px;
-  box-shadow: var(--shadow-sm);
+  border: 1px solid rgba(255,255,255,0.6);
+  box-shadow: 0 4px 24px rgba(99,102,241,0.07), 0 1px 4px rgba(0,0,0,0.04);
 }
 
 .panel-header {
