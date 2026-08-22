@@ -64,6 +64,8 @@ export default function MedicineStores() {
   }
 
   const handleGPSLocationGranted = (coords) => {
+    if (coords.pincode) setPincode(coords.pincode)
+    if (coords.city || coords.area) setLocationLabel(coords.area || coords.city)
     handleSearchByCoords(coords.latitude, coords.longitude)
   }
 

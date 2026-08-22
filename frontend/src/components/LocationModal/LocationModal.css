@@ -86,6 +86,28 @@
   max-width: 400px;
 }
 
+.location-status-badge {
+  background: rgba(79, 107, 246, 0.1);
+  color: var(--primary);
+  border: 1px solid rgba(79, 107, 246, 0.25);
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.loc-spinner-small {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(79, 107, 246, 0.3);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: ringRotate 0.8s linear infinite;
+}
+
 .location-error-box {
   background: #fef2f2;
   border: 1px solid #fecaca;
