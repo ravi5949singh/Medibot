@@ -236,33 +236,43 @@ export default function Home() {
               </div>
             </div>
 
-            {/* 3D CSS ROBOT HERO */}
+            {/* 3D MEDICAL ANIMATION HERO */}
             <div className="hero-robot-side">
-              <div className="medibot-container">
-                <div className="medibot-glow-ring"></div>
-                <div className="medibot-robot">
-                  <div className="robot-head">
-                    <div className="robot-ear left"></div>
-                    <div className="robot-face">
-                      <div className="robot-eye left"><div className="pupil"></div></div>
-                      <div className="robot-eye right"><div className="pupil"></div></div>
-                      <div className="robot-mouth"></div>
-                    </div>
-                    <div className="robot-ear right"></div>
-                  </div>
-                  <div className="robot-neck"></div>
-                  <div className="robot-body">
-                    <div className="body-chest">
-                      <div className="pulse-heart">✚</div>
-                    </div>
-                    <div className="robot-arm left"></div>
-                    <div className="robot-arm right"></div>
-                  </div>
+              <div className="medical-anim-container">
+                {/* ECG / Heartbeat line */}
+                <div className="ecg-wrapper">
+                  <svg className="ecg-svg" viewBox="0 0 320 80" preserveAspectRatio="none">
+                    <polyline
+                      className="ecg-line"
+                      points="0,50 40,50 55,50 65,10 75,70 85,15 95,50 140,50 155,50 165,10 175,70 185,15 195,50 240,50 255,50 265,10 275,70 285,15 295,50 320,50"
+                    />
+                  </svg>
                 </div>
-                {/* Floating Medical Particles */}
-                <div className="floating-bubble bubble-1">💊</div>
-                <div className="floating-bubble bubble-2">🧬</div>
-                <div className="floating-bubble bubble-3">⚕</div>
+
+                {/* DNA Helix rings */}
+                <div className="dna-helix">
+                  {[...Array(8)].map((_, i) => (
+                    <div key={i} className={`dna-ring dna-ring-${i}`}>
+                      <div className="dna-dot left"></div>
+                      <div className="dna-bar"></div>
+                      <div className="dna-dot right"></div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Central medical cross */}
+                <div className="med-cross-center">
+                  <div className="med-cross-icon">✚</div>
+                  <div className="med-cross-pulse"></div>
+                  <div className="med-cross-pulse delay-1"></div>
+                </div>
+
+                {/* Floating Medical Icons */}
+                <div className="med-float-icon flt-1">💊</div>
+                <div className="med-float-icon flt-2">🧬</div>
+                <div className="med-float-icon flt-3">🩺</div>
+                <div className="med-float-icon flt-4">🧪</div>
+                <div className="med-float-icon flt-5">❤️</div>
               </div>
             </div>
 
