@@ -12,8 +12,8 @@ export default function FindDoctors() {
   const [specialization, setSpecialization] = useState(location.state?.specialization || '')
   const [doctors, setDoctors] = useState([])
   const [isLoading, setIsLoading] = useState(false)
+  const [locationLabel, setLocationLabel] = useState('')
   const [selectedDoctor, setSelectedDoctor] = useState(null)
-
 
   useEffect(() => {
     handleSearch()
@@ -24,6 +24,9 @@ export default function FindDoctors() {
     try {
       const result = await searchDoctors(pincode, area, specialization)
       setDoctors(result.doctors || [])
+      if (result.location) {
+        setLocationLabel(result.location)
+      }
     } catch (error) {
       console.error('Failed to search doctors', error)
       setDoctors([])
@@ -89,22 +92,21 @@ export default function FindDoctors() {
     }
   }
 
-  // Fallback avatar color generator
-  const getAvatarColor = (name) => {
+  const getAvatarColor = (name = '') => {
     const colors = ['#4F6BF6', '#22C55E', '#8B5CF6', '#EF4444', '#F59E0B', '#EC4899']
     return colors[name.length % colors.length]
   }
 
   return (
     <div className="page-full">
-      <h1 className="page-heading">Find Doctors Near You</h1>
-      <p className="page-desc">Search for the best doctors and specialists in your area</p>
+      <h1 className="page-heading">Find Doctors & Clinics Near You</h1>
+      <p className="page-desc">Search verified doctors, medical specialists, and clinics by entering any Indian pincode or area</p>
 
       <div className="search-filters">
         <input 
           className="filter-input" 
           id="pincode-input" 
-          placeholder="Enter Pincode" 
+          placeholder="Enter 6-Digit Pincode (e.g. 110001, 462001)" 
           value={pincode} 
           onChange={e => setPincode(e.target.value)} 
           onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
@@ -112,7 +114,7 @@ export default function FindDoctors() {
         <input 
           className="filter-input" 
           id="area-input" 
-          placeholder="Local Area (optional)" 
+          placeholder="Local Area / Landmark (optional)" 
           value={area} 
           onChange={e => setArea(e.target.value)} 
           onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
@@ -120,20 +122,26 @@ export default function FindDoctors() {
         <input 
           className="filter-input" 
           id="spec-input" 
-          placeholder="Specialization (optional)" 
+          placeholder="Specialization (e.g. Cardiologist, Dentist)" 
           value={specialization} 
           onChange={e => setSpecialization(e.target.value)} 
           onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
         />
         <button className="filter-btn" id="search-doctors-btn" onClick={handleSearch} disabled={isLoading}>
-          {isLoading ? 'Searching...' : 'Search'}
+          {isLoading ? 'Searching...' : 'Search Doctors'}
         </button>
       </div>
 
-      <div className="results-grid">
+      {locationLabel && (
+        <div style={{ marginTop: '12px', fontSize: '0.85rem', color: '#4F6BF6', fontWeight: 500 }}>
+          📍 Showing clinics and doctors near: <span style={{ color: '#1E293B' }}>{locationLabel}</span>
+        </div>
+      )}
+
+      <div className="results-grid" style={{ marginTop: '20px' }}>
         {doctors.length === 0 && !isLoading && (
           <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: '#64748B' }}>
-            No doctors found for this pincode or specialization.
+            No doctors or clinics found for this search. Please try a nearby pincode or city name.
           </div>
         )}
         
@@ -141,23 +149,29 @@ export default function FindDoctors() {
           <div key={doc._id || doc.id} className="result-card fade-in" id={`doc-result-${doc._id || doc.id}`}>
             <div className="result-card-header">
               <div className="result-avatar" style={{ background: getAvatarColor(doc.name) }}>
-                {doc.name.split(' ').slice(1, 3).map(n => n?.[0]).join('') || doc.name[0]}
+                {doc.name.replace(/^Dr\.\s*/i, '').slice(0, 2).toUpperCase() || 'DR'}
               </div>
-              <div>
-                <div className="result-name">{doc.name}</div>
-                <div className="result-spec">{doc.specialization || doc.spec}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="result-name" style={{ fontWeight: 700 }}>{doc.name}</div>
+                <div className="result-spec" style={{ color: '#4F6BF6', fontWeight: 600, fontSize: '0.82rem' }}>
+                  {doc.specialization || doc.spec || 'General Physician'}
+                </div>
               </div>
             </div>
-            <div className="result-meta">
-              <span><FiMapPin size={12} /> 2.8 km</span>
-              <span><FiStar size={12} /> {doc.rating || '4.5'}</span>
-              <span>{doc.clinic_address || doc.address}</span>
+
+            <div className="result-meta" style={{ marginTop: '12px' }}>
+              <span><FiMapPin size={12} /> Pincode: {doc.pincode || pincode}</span>
+              <span><FiStar size={12} style={{ color: '#F59E0B' }} /> {doc.rating || '4.5'}</span>
+              <div style={{ width: '100%', marginTop: '4px', fontSize: '0.8rem', color: '#64748B' }}>
+                🏢 {doc.clinic_address || doc.address}
+              </div>
             </div>
+
             <div className="result-actions" style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
-              <a href={`tel:${doc.phone}`} onClick={() => handleCallDoctor(doc)} className="result-btn result-btn--primary" style={{ flex: 1, textDecoration: 'none', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', background: '#4F6BF6', color: '#fff', padding: '8px', borderRadius: '6px' }}>
+              <a href={`tel:${doc.phone}`} onClick={() => handleCallDoctor(doc)} className="result-btn result-btn--primary" style={{ flex: 1, textDecoration: 'none', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', background: '#4F6BF6', color: '#fff', padding: '10px', borderRadius: '8px', fontWeight: 600 }}>
                 <FiPhone size={14} /> Call
               </a>
-              <button onClick={() => handleVisitDoctor(doc)} className="result-btn result-btn--outline" style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', background: '#fff', border: '1px solid #E5E7EB', color: '#64748B', padding: '8px', borderRadius: '6px', cursor: 'pointer' }}>
+              <button onClick={() => handleVisitDoctor(doc)} className="result-btn result-btn--outline" style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', background: '#fff', border: '1.5px solid #E5E7EB', color: '#475569', padding: '10px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}>
                 <FiNavigation size={14} /> Directions
               </button>
             </div>
