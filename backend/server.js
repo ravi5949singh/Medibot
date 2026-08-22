@@ -20,18 +20,18 @@ const PORT = process.env.PORT || 5000
 app.use(helmet())
 const allowedOrigins = [
   'http://localhost:3000',
-  'https://medibot-khaki.vercel.app',
-  'https://medibot-git-main-ravi5949singhs-projects.vercel.app',
-  'https://medibot-a0yt0kf6p-ravi5949singhs-projects.vercel.app'
+  'http://localhost:5173',
+  'https://medibot-khaki.vercel.app'
 ]
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps, curl, Render health checks)
+    // Allow requests with no origin (mobile apps, curl, Render health checks)
     if (!origin) return callback(null, true)
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true)
-    }
-    return callback(new Error('CORS: Not allowed by CORS policy'))
+    // Allow any Vercel preview/deployment URL
+    if (origin.endsWith('.vercel.app')) return callback(null, true)
+    // Allow explicit origins
+    if (allowedOrigins.includes(origin)) return callback(null, true)
+    return callback(new Error('CORS: Not allowed'))
   },
   credentials: true
 }))
@@ -40,7 +40,7 @@ app.use(express.json({ limit: '10mb' }))
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100,
+  max: 500,
   message: { error: 'Too many requests, please try again later.' }
 })
 app.use('/api/', limiter)
